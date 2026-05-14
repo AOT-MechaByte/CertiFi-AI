@@ -1,21 +1,40 @@
 import { NextResponse } from "next/server";
+import { supabase } from "@/lib/supabase";
 
-import { mockIssueCertificate } from "@/lib/fake-blockchain";
-import type { DraftCertificateInput } from "@/types/certificate";
+export async function POST(req: Request) {
+  try {
+    const body = await req.json();
 
-export async function POST(request: Request) {
-  const body = (await request.json()) as DraftCertificateInput;
+    const certId = `CERT-${Date.now()}`;
 
-  if (!body.recipientName || !body.courseName || !body.institutionName || !body.issueDate) {
+    const { data, error } = await supabase
+      .from("certificates")
+      .insert([
+        {
+          cert_id: certId,
+          recipient_name: body.recipient_name,
+          course_name: body.course_name,
+          issue_date: body.issue_date,
+          grade: body.grade,
+        },
+      ])
+      .select();
+
+    if (error) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      certificate: data[0],
+    });
+  } catch (err) {
     return NextResponse.json(
-      { error: "Missing required fields for mock issuance." },
-      { status: 400 }
+      { error: "Server Error" },
+      { status: 500 }
     );
   }
-
-  // TODO: Replace this mock route with a real API handler or server action backed by Supabase.
-  const certificate = await mockIssueCertificate(body);
-
-  return NextResponse.json({ data: certificate });
 }
-

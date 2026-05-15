@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { AlertTriangle, ArrowLeft, ArrowRight, Blocks, FileCheck2, ShieldCheck } from "lucide-react";
 
+import { headers } from "next/headers";
 import { AnimatedBackground } from "@/components/animated-background";
 import { HashDisplay } from "@/components/hash-display";
 import { VerificationBadge } from "@/components/verification-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { mockVerifyCertificate } from "@/lib/fake-blockchain";
 import { VERIFICATION_COPY } from "@/lib/constants";
 import { formatDate } from "@/lib/utils";
 
@@ -15,8 +15,28 @@ export default async function VerificationResultPage({
 }: {
   params: { certId: string };
 }) {
-  const result = await mockVerifyCertificate(params.certId);
-  const copy = VERIFICATION_COPY[result.state];
+  const host = headers().get("host") ?? "localhost:3000";
+  const protocol = headers().get("x-forwarded-proto") ?? (host.includes("localhost") ? "http" : "https");
+  const url = new URL("/api/certificates/verify", `${protocol}://${host}`);
+
+  const response = await fetch(url.toString(), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ certId: params.certId }),
+    cache: "no-store",
+  });
+
+  const payload = await response.json();
+  const result = response.ok
+    ? payload.data
+    : {
+        state: "NOT_FOUND",
+        message: payload.error ?? "Verification service error",
+        certificate: null,
+        auditTrail: ["Verification service unavailable"],
+      };
+
+  const copy = VERIFICATION_COPY[result?.state ?? "NOT_FOUND"];
 
   return (
     <div className="relative min-h-screen overflow-hidden px-6 py-10 lg:px-8">

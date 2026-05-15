@@ -13,17 +13,25 @@ import { HashDisplay } from "@/components/hash-display";
 import { LoadingSpinner } from "@/components/loading-spinner";
 import { QrPreview } from "@/components/qr-preview";
 import type { Certificate, DraftCertificateInput } from "@/types/certificate";
+import { supabase } from "@/lib/supabase";
 
 const initialForm: DraftCertificateInput = {
   recipientName: "Rahul Sharma",
   courseName: "AI & ML Bootcamp",
-  institutionName: "MechaByte Academy",
-  institutionCode: "MBA-IND",
+  institutionName: "MechaByte Academy",    // ← String, not UUID
+  institutionCode: "MBA-IND",              // ← String, not UUID
   issueDate: "2026-05-14",
   expiryDate: "",
   grade: "Distinction",
   issuedBy: "Asha Registrar",
-  note: "Hackathon demo issuance for judges."
+  note: "..."
+};
+
+// Map institutionCode/institutionName to a seeded institution_id UUID
+const institutionMap: Record<string, string> = {
+  "MBA-IND": "550e8400-e29b-41d4-a716-446655440001", // MechaByte Academy UUID
+  "CCL-IND": "550e8400-e29b-41d4-a716-446655440002", // CertiChain Labs UUID
+  // ... other institutions
 };
 
 export function CertificateForm() {
@@ -61,10 +69,8 @@ export function CertificateForm() {
       // TODO: Replace this mock fetch with a secured server action or Supabase-backed API route.
       const response = await fetch("/api/certificates/issue", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(form)
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form) // ← Sends: {recipientName, courseName, institutionName, institutionCode, ...}
       });
 
       const payload = await response.json();
@@ -232,4 +238,16 @@ export function CertificateForm() {
       </div>
     </div>
   );
+}
+
+export interface DraftCertificateInput {
+  recipientName: string;
+  courseName: string;
+  institutionName: string;      // ← Defined as string
+  institutionCode: string;      // ← Defined as string
+  issueDate: string;
+  expiryDate?: string;
+  grade: string;
+  issuedBy: string;
+  note?: string;
 }

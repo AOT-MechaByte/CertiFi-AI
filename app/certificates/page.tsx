@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ArrowRight, Search } from "lucide-react";
 
@@ -17,14 +17,46 @@ import {
   TableHeader,
   TableRow
 } from "@/components/ui/table";
-import { certificates } from "@/lib/mock-data";
 import { formatDate } from "@/lib/utils";
 
 type FilterValue = "ALL" | "VALID" | "TAMPERED";
+type Certificate = {
+  id: string;
+  certId: string;
+  recipientName: string;
+  courseName: string;
+  institutionName: string;
+  issuedAt: string;
+  status: string;
+  storedHash: string;
+  currentHash: string;
+};
 
 export default function CertificatesPage() {
+  const [certificates, setCertificates] = useState<Certificate[]>([]);
+  const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<FilterValue>("ALL");
+
+  // Fetch certificates from API
+  useEffect(() => {
+    const fetchCertificates = async () => {
+      try {
+        const response = await fetch("/api/certificates/list");
+        const result = await response.json();
+
+        if (result.success && result.data) {
+          setCertificates(result.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch certificates:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCertificates();
+  }, []);
 
   const filtered = certificates.filter((certificate) => {
     const state =
@@ -84,66 +116,79 @@ export default function CertificatesPage() {
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Recipient</TableHead>
-                <TableHead>Certificate ID</TableHead>
-                <TableHead>Institution</TableHead>
-                <TableHead>Issued</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((certificate) => {
-                const state =
-                  certificate.status === "REVOKED"
-                    ? "TAMPERED"
-                    : certificate.storedHash === certificate.currentHash
-                      ? "VALID"
-                      : "TAMPERED";
-
-                return (
-                  <TableRow key={certificate.id}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium text-white">{certificate.recipientName}</p>
-                        <p className="text-xs text-slate-500">{certificate.courseName}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell>{certificate.certId}</TableCell>
-                    <TableCell>{certificate.institutionName}</TableCell>
-                    <TableCell>{formatDate(certificate.issuedAt)}</TableCell>
-                    <TableCell>
-                      <VerificationBadge state={state} />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" asChild>
-                        <Link href={`/verify/${certificate.certId}`}>Inspect</Link>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-
-          <div className="flex flex-col items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 text-sm text-slate-400 sm:flex-row">
-            <p>Showing 1-5 of 24 mock records</p>
-            <div className="flex gap-2">
-              <Button variant="secondary" size="sm">
-                Previous
-              </Button>
-              <Button size="sm">1</Button>
-              <Button variant="secondary" size="sm">
-                2
-              </Button>
-              <Button variant="secondary" size="sm">
-                Next
-              </Button>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <p className="text-slate-400">Loading certificates...</p>
             </div>
-          </div>
+          ) : filtered.length === 0 ? (
+            <div className="flex items-center justify-center py-12">
+              <p className="text-slate-400">
+                {certificates.length === 0
+                  ? "No certificates issued yet."
+                  : "No certificates match your search filters."}
+              </p>
+            </div>
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Recipient</TableHead>
+                    <TableHead>Certificate ID</TableHead>
+                    <TableHead>Institution</TableHead>
+                    <TableHead>Issued</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map((certificate) => {
+                    const state =
+                      certificate.status === "REVOKED"
+                        ? "TAMPERED"
+                        : certificate.storedHash === certificate.currentHash
+                          ? "VALID"
+                          : "TAMPERED";
+
+                    return (
+                      <TableRow key={certificate.id}>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium text-white">{certificate.recipientName}</p>
+                            <p className="text-xs text-slate-500">{certificate.courseName}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell>{certificate.certId}</TableCell>
+                        <TableCell>{certificate.institutionName}</TableCell>
+                        <TableCell>{formatDate(certificate.issuedAt)}</TableCell>
+                        <TableCell>
+                          <VerificationBadge state={state} />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" asChild>
+                            <Link href={`/verify/${certificate.certId}`}>Inspect</Link>
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+
+              <div className="flex flex-col items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 text-sm text-slate-400 sm:flex-row">
+                <p>Showing {filtered.length} of {certificates.length} records</p>
+                <div className="flex gap-2">
+                  <Button variant="secondary" size="sm" disabled>
+                    Previous
+                  </Button>
+                  <Button size="sm">1</Button>
+                  <Button variant="secondary" size="sm" disabled>
+                    Next
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
     </DashboardShell>
